@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UIDEF>
+	<font face="微软雅黑" size="14" />
+
+	<string src="values:string" />
+	<color src="values:color" />
+	<skin src="values:skin" />
+
+	<style>
+		<class name="cls_title" font="face:微软雅黑,size:18" colorText="#FFFFFF"/>
+		<class name="combo_box" inset="6,2,0,0" drawFocusRect="0" dropDown="1" margin="1" ncSkin="ncBroder" dotted="0" animateTime="200"/>
+		<class name="combo_list" margin="1" ncSkin="ncBroder" iconSkin="" itemSkin="" itemHeight="28" text-x="6" colorBkgnd="#FFFFFF" colorItemBkgnd="#FFFFFF" colorSelText="#FFFFFF" colorText="#000000" />
+		<class name="cls_code" font="face:微软雅黑,size:32" colorText="#AAAAAA" align="center" />
+	</style>
+	
+	<objattr>
+		<button skin="_skin.sys.btn.normal" focusable="0" />
+		<edit inset="6,0,2,0" margin="1" ncSkin="ncBroder" autoWordSel="0" autoSel="0" />
+		<combobox class="combo_box" />
+	</objattr>
+</UIDEF>

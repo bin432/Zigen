@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<skin>
+	<imglist name="btn_close" src="image:btn_close" states="3"  />
+	<imgframe name="btn_reg" src="image:btn_reg" states="4" margin="2,2,2,2" enableColorize="0" />
+	<button name="btn_blue" colorBorder="#7D9EBC" colorUp="#069DD5" colorDown="#069DD5" colorUpHover="#4bCAFF" colorDownHover="#4bCAFF" colorUpPush="#069DD5" colorDownPush="#069DD5" cornerRadius="2" />
+	<imglist name="img_busy" src="image:img_busy" states="8" enableColorize="0" />
+	<imgframe name="shadow" src="image:shadow" states="1" margin="5,3,5,7" enableColorize="0" />
+	<colorrect name="ncBroder" normal="#7A7A7A" hover="#0078D7" pushdown="#610101" disable="#A0A0A0" cornerRadius="0" />
+	<imglist name="chicken" src="image:chicken" states="1"  />
+	<imglist name="star" src="image:star" states="1"  />
+	
+</skin>

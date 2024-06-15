@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SOUI name="main" title="字根练习" bigIcon="ICON_LOGO:32" smallIcon="ICON_LOGO:32" width="640" height="450"
+	  resizable="0" margin="4,8,8,8" appWnd="1" translucent="1" sendWheel2Hover="0" >
+
+<root skin="shadow" >
+	<caption pos="5,3,-5,@32" name="caption" colorBkgnd="@color/theme" >
+		<text pos="20,|0"  offset="0, -0.5" name="text_title" text="字根练习工具" class="cls_title"/>
+	
+		<imgbtn pos="-1,1" offset="-1,0" name="btn_close" skin="_skin.sys.btn.close" tip="关闭" animate="0"/>
+	</caption>
+	
+	
+	<window pos="5,[0,-5,-7" colorBkgnd="@color/bg" layout="vbox" gravity="center">
+		<window size="-2,60" layout="hbox" gravity="center">
+			<imgbtn size="80,30" extend_left="20" show="0" name="btn_next" text="下一个" />
+			
+			<window weight="1"/>
+
+			<window size="80,40" >
+				<text pos="20,0" size="-2,-1" text="0%" name="text_cent" font="bold:1,size:16" align="right"  />
+				<text pos="20,[0" size="-2,-1" name="text_progress" text="0/0" align="right" />
+
+			</window>
+			
+			<window size="80,40" extend_left="20" >
+				<img pos="18,2" skin="star" />
+				<text pos="[2,0" text="*1倍" name="text_bb" />
+				<text pos="|0,[2" offset="-0.5,0" name="text_points" text="" font="bold:1,size:16" align="center" />
+
+			</window>
+			<window size="60,40" >
+				<img pos="3,2" skin="chicken" />
+				<text pos="[2,0" text="连击" />
+				<text pos="|0,[2" offset="-0.5,0" name="text_ccc" text="0" font="bold:1,size:16" align="center" />
+			</window>
+			<window size="40,2"/>
+		</window>
+
+		<window size="-2,140" layout="vbox" gravity="center">
+			<img size="-1,-1" name="img_zi" />
+		</window>
+		
+		<text size="100,60" name="text_code" text="" class="cls_code"/>
+		<window size="6,20" />
+		<window size="-2,60" layout="hbox" gravity="center">
+			<window weight="1"/>
+			<text size="60,54" name="text_first" text="" skin="shadow"  class="cls_code"/>
+			
+			<text size="60,54" name="text_second" text="" skin="shadow" class="cls_code" display="0" />
+			<window weight="1"/>
+		</window>
+		
+	</window>
+	
+</root>
+
+</SOUI>
