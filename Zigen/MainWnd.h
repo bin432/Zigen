@@ -58,7 +58,8 @@ protected:
 	END_MSG_MAP()
 
 
-	void ShowZigen();
+	void DrawZigen();
+	void DrawProgress();
 protected:
 	SImageWnd* m_pImage;
 	SStatic* m_pTxtCode;

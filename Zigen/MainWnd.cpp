@@ -166,14 +166,10 @@ BOOL CMainWnd::OnInitDialog(HWND wndFocus, LPARAM lInitParam)
 		return common::CalcFileSize(a->file) < common::CalcFileSize(b->file);
 	});
 
-	//SStringT sss;
 	// 加载 上次保存的 列表
 	InitConfigListS(m_list);
 	if (m_list.empty()) {
 		for (int i = 0; i < m_arrZigen.size(); i++) {
-
-			//sss += common::GetFileNameWithoutExt(m_arrZigen.at(i)->file).c_str();
-			//sss += L".png\r\n";
 			m_list.push_back(new ZigenCount{i, -1});
 		}
 	}
@@ -184,7 +180,8 @@ BOOL CMainWnd::OnInitDialog(HWND wndFocus, LPARAM lInitParam)
 	SetChildText(L"text_points", SStringT().Format(L"%d", m_points));
 	SetChildFormatText(L"text_ccc", SStringT().Format(L"%d", m_ccc));
 
-	ShowZigen();
+	DrawProgress();
+	DrawZigen();
 	return TRUE;
 }
 
@@ -201,7 +198,7 @@ void CMainWnd::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_pTxtSecond->SetAttribute(L"colorText", L"#AAAAAA");
 		return;
 	}
-
+	
 	if (nChar > 90 || nChar < 65) {
 		return;
 	}
@@ -291,11 +288,20 @@ void CMainWnd::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 	SaveConfigZigenCountList(m_list);
 	
-	ShowZigen();
+	DrawZigen();
 }
 
+void CMainWnd::DrawProgress() 
+{
+	int hadC = m_progress + 1;
+	int cent = hadC * 100 / m_arrZigen.size();
 
-void CMainWnd::ShowZigen()
+	SetChildFormatText(L"text_cent", L"%d%%", cent);
+	SetChildFormatText(L"text_progress", L"%d/%d", hadC, m_arrZigen.size());
+
+	SetConfigInt(L"progress", m_progress);
+}
+void CMainWnd::DrawZigen()
 {
 	ZigenCount* zcount = m_list.front();
 	ZigenInfo* info = m_arrZigen[zcount->index];
@@ -309,14 +315,7 @@ void CMainWnd::ShowZigen()
 
 	if (zcount->index >= m_progress) {
 		m_progress = zcount->index;
-
-		int hadC = m_progress + 1;
-		int cent = hadC * 100 / m_arrZigen.size();
-
-		SetChildFormatText(L"text_cent", L"%d%%", cent);
-		SetChildFormatText(L"text_progress", L"%d/%d", hadC, m_arrZigen.size());
-
-		SetConfigInt(L"progress", m_progress);
+		DrawProgress();
 	}
 
 
