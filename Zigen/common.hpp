@@ -6,138 +6,96 @@
 
 namespace common
 {
-
-	// 横向  查询 depth 深度 
-	static bool WalkH(const wchar_t* lpPath, std::function<bool(const wchar_t*, bool, unsigned __int64)> fn, const wchar_t* lpFilter = L"*", int depth = -1)
+	static std::wstring toW(const char* utf8, int len)
 	{
-		std::list<std::wstring> listFolder;
-		std::list<int> listDepth;
-		int nCurDepth = 0;
-
-		std::wstring sPath = lpPath;
-		auto en = --sPath.end();
-		if ('\\' == *en || '/' == *en) {
-			sPath.erase(en);
+		if (-1 == len) {
+			len = static_cast<int>(strlen(utf8));
 		}
 
-		listFolder.push_back(sPath);
-		listDepth.push_back(0);
+		if ((nullptr == utf8) || (0 == len))
+			return std::wstring();
 
-		while (listFolder.size() > 0) {
-			//从队列首取出路径
-			std::wstring sFolder = listFolder.front();
-			listFolder.pop_front();
+		// cbMultiChar 如果传 -1  那么返回长度 包括 '\0'  也就是 比 wcslen 多 1;
+		// 所以 还是 传 len 取好了 
+		int outSize = MultiByteToWideChar(CP_UTF8, 0, utf8, len, NULL, 0);
 
-			if (depth >= 0) {				// 大于等于 0  才 判断 深度
-				nCurDepth = listDepth.front();
-				listDepth.pop_front();
-				if (nCurDepth >= depth) {
+		std::wstring sOut;
+		sOut.resize(outSize);
+
+		MultiByteToWideChar(CP_UTF8, 0, utf8, len, (wchar_t*)sOut.data(), outSize);
+
+		return sOut;
+	}
+	static std::wstring toW(const std::string& utf8)
+	{
+		return toW(utf8.c_str(), utf8.length());
+	}
+	static std::string toUtf8(const wchar_t* w, int len=-1)
+	{
+		if (-1 == len) {
+			len = static_cast<int>(wcslen(w));
+		}
+
+		if ((nullptr == w) || (0 == len))
+			return std::string();
+
+		// cchWideChar 如果传 -1  那么返回长度 包括 '\0'  也就是 比 wcslen 多 1;
+		// 所以 还是 传 len 取好了 
+		int outSize = WideCharToMultiByte(CP_UTF8, 0, w, len, NULL, 0, NULL, NULL);
+
+		std::string sOut;			// string 不能包含 '\0' 会发生很多意外的事情
+		sOut.resize(outSize);
+
+		WideCharToMultiByte(CP_UTF8, 0, w, len, (char*)sOut.data(), outSize, NULL, NULL);
+		return sOut;
+	}
+	static std::string toUtf8(const std::wstring& w)
+	{
+		return toUtf8(w.c_str(), w.length());
+	}
+
+	static int GetIniFileInt(const wchar_t* lpApp, const wchar_t* lpKey, const wchar_t* inifile, int def = 0)
+	{
+		return GetPrivateProfileIntW(lpApp, lpKey, def, inifile);
+	}
+	static bool SetIniFileInt(const wchar_t* lpApp, const wchar_t* lpKey, const wchar_t* inifile, int v)
+	{
+		return TRUE == WritePrivateProfileStringW(lpApp, lpKey, std::to_wstring(v).c_str(), inifile);
+	}
+
+	static std::wstring GetIniFileString(const wchar_t* lpApp, const wchar_t* lpKey, const wchar_t* inifile, const wchar_t* def = NULL)
+	{
+		WCHAR cBuf[1024] = {0};
+		DWORD uSize = GetPrivateProfileStringW(lpApp, lpKey, def, cBuf, 1024, inifile);
+		if (uSize > 0) {
+			cBuf[uSize] = '\0';
+		}
+
+		return std::wstring(cBuf);
+	}
+	static bool SetIniFileString(const wchar_t* lpApp, const wchar_t* lpKey, const wchar_t* inifile, const wchar_t* v)
+	{
+		return TRUE == WritePrivateProfileStringW(lpApp, lpKey, v, inifile);
+	}
+
+
+	static void Split(const wchar_t* str, wchar_t sep, std::function<bool(const wchar_t*,int)> fn)
+	{
+		size_t nValueBegin = 0;
+		int len = lstrlenW(str);
+
+		for (size_t i = 0; i <= len; ++i) {
+			if (L':' == str[i] && nValueBegin < i) {
+				
+				if (!fn(str + nValueBegin, i - nValueBegin)) {
 					break;
 				}
+
+				nValueBegin = i + 1;			
 			}
-
-			std::wstring sFilePath = sFolder + L"\\" + lpFilter;
-
-			WIN32_FIND_DATAW fd;
-			HANDLE hFind = FindFirstFileW(sFilePath.c_str(), &fd);
-			if (INVALID_HANDLE_VALUE == hFind) {
-				return false;
-			}
-
-			//枚举文件夹内的 文件信息
-			do {
-				std::wstring strName = fd.cFileName;
-				if (L"." == strName || L".." == strName) {
-					continue;
-				}
-
-				std::wstring s = sFolder + L"\\" + fd.cFileName;
-				if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY) {
-					if (!fn(s.c_str(), true, 0)) {
-						FindClose(hFind);
-						return true;
-					}
-
-					//如果是文件夹 就先入列   
-					listFolder.push_back(s);
-					if (depth >= 0) {
-						listDepth.push_back(nCurDepth + 1);
-					}
-					continue;
-				}
-
-				ULARGE_INTEGER liSize;
-				liSize.LowPart = fd.nFileSizeLow;
-				liSize.HighPart = fd.nFileSizeHigh;
-				if (!fn(s.c_str(), false, liSize.QuadPart)) {
-					FindClose(hFind);
-					return true;
-				}
-			} while (FindNextFileW(hFind, &fd));		//查找下一个
-
-			FindClose(hFind);
 		}
-
-		return true;
+		if (nValueBegin < len) {
+			fn(str + nValueBegin, len - nValueBegin);
+		}
 	}
-	// 计算 文件 大小
-	static unsigned __int64 CalcFileSize(const wchar_t* lpFilePath)
-	{
-		ULARGE_INTEGER liSize;
-		liSize.QuadPart = 0;
-
-		WIN32_FIND_DATAW Find32;
-		HANDLE hFind = FindFirstFileW(lpFilePath, &Find32);
-		if (INVALID_HANDLE_VALUE != hFind) {
-			liSize.LowPart = Find32.nFileSizeLow;
-			liSize.HighPart = Find32.nFileSizeHigh;
-			FindClose(hFind);
-		}
-		return liSize.QuadPart;
-	}
-	// 返回值 是 LastWriteTime  0 失败
-	static DWORD GetFileTime(const wchar_t* lpFilePath, DWORD* pCT = nullptr, DWORD* pLA = nullptr)
-	{
-		WIN32_FIND_DATAW ff32;
-
-		HANDLE hFind = FindFirstFileW(lpFilePath, &ff32);
-		if (hFind != INVALID_HANDLE_VALUE) {
-			FindClose(hFind);
-			DWORD dwLWT = 0;
-			FILETIME ftLocal;
-			FileTimeToLocalFileTime(&(ff32.ftLastWriteTime), &ftLocal);
-			FileTimeToDosDateTime(&ftLocal, ((LPWORD)&dwLWT) + 1, ((LPWORD)&dwLWT) + 0);
-
-			if (nullptr != pCT) {
-				FILETIME ft1;
-				FileTimeToLocalFileTime(&(ff32.ftCreationTime), &ft1);
-				FileTimeToDosDateTime(&ft1, ((LPWORD)pCT) + 1, ((LPWORD)pCT) + 0);
-			}
-
-			if (nullptr != pLA) {
-				FILETIME ft2;
-				FileTimeToLocalFileTime(&(ff32.ftLastAccessTime), &ft2);
-				FileTimeToDosDateTime(&ft2, ((LPWORD)pLA) + 1, ((LPWORD)pLA) + 0);
-			}
-			return dwLWT;
-		}
-		return 0;
-	}
-	static std::wstring GetFileNameWithoutExt(const wchar_t* lpFilePath)
-	{
-		LPCWSTR lpFileName = ::PathFindFileNameW(lpFilePath);
-		if (nullptr == lpFileName) {
-			return lpFilePath;
-		}
-
-		LPCWSTR lpExt = PathFindExtensionW(lpFileName);
-		if (nullptr == lpExt || 0 == lstrlenW(lpExt)) {
-			return std::wstring(lpFileName);
-		}
-
-		std::wstring sName(lpFileName, lpExt - lpFileName);
-		return sName;
-	}
-
-
 }

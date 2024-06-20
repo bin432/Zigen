@@ -5,21 +5,10 @@
 #include <set>
 #include "..\ui\SHostWndEx.hpp"
 
+#include "ZigenData.hpp"
+#include "HanziData.hpp"
 
-struct ZigenInfo
-{
-	SStringT file;			// 
-	SStringT code;		// 
-	IBitmap* bmp;
-};
-
-struct ZigenCount
-{
-	int index;
-	int count;
-};
-
-class CMainWnd : public SHostWndEx
+class CMainWnd : public SHostWndEx	
 {
 public:
 	CMainWnd(void);
@@ -38,14 +27,17 @@ public:
 public:
 	BOOL OnInitDialog(HWND wndFocus, LPARAM lInitParam);
 	void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-public:
-	void OnBtnNext();
-	//bool OnTextChange(EventArgs* e);
+	void OnTimer(UINT_PTR idEvent);
+
 protected:
+	BOOL OnCombSelChange(EventCBSelChange* pEvt);
+	BOOL OnEditRENotifyHanzi(EventRENotify* pEvt);
+	BOOL OnAnimStopZigen(EventSwndAnimationStop* pEvt);
+	BOOL OnAnimStopHanzi(EventSwndAnimationStop* pEvt);
+
 	//事件处理映射表  频繁的 操作可以写到前面来 减少 判断 最后都用 绑定 
 	EVENT_MAP_BEGIN()
 		EVENT_NAME_COMMAND(L"btn_close", OnBtnClose)
-		EVENT_NAME_COMMAND(L"btn_next", OnBtnNext)
 	EVENT_MAP_END()
 	
 	//窗口消息处理映射表
@@ -53,29 +45,35 @@ protected:
 		MSG_WM_INITDIALOG(OnInitDialog)
 		
 		MSG_WM_KEYDOWN(OnKeyDown)
+		MSG_WM_TIMER(OnTimer)
 		MSG_WM_CLOSE(OnBtnClose)
-		CHAIN_MSG_MAP(SHostWnd)
+		CHAIN_MSG_MAP(SHostWndEx)
 	END_MSG_MAP()
 
-
-	void DrawZigen();
 	void DrawProgress();
+	void LoadZigen();
+	void DoVerify();
+
+	void LoadHanzi();
 protected:
+	SComboBox* m_pComb;
+	SWindow* m_pLayZigen;
 	SImageWnd* m_pImage;
 	SStatic* m_pTxtCode;
 	SStatic* m_pTxtFirst;
 	SStatic* m_pTxtSecond;
-protected:	
-	// 全部字根
-	std::vector<ZigenInfo*> m_arrZigen;
 
+	SWindow* m_pLayHanzi;
+	SStatic* m_pTxtPin;
+	SStatic* m_pTxtHanzi;
+	SEdit* m_pEditHanzi;
 
-	// 依次展示的 队列
-	std::list<ZigenCount*> m_list;
-
-	unsigned int m_progress = 0;		// 进度
-	
-	unsigned int m_points = 0;			// 总分
-	unsigned int m_ccc = 0;				// 连击
+	SStatic* m_pTxtScore;
+	SAutoRefPtr<IAnimation> m_aniHide;
+	SAutoRefPtr<IAnimation> m_aniShow;
+	SAutoRefPtr<IAnimation> m_aniScore;
+protected:
+	ZigenData m_dataZigen;
+	HanziData m_dataHanzi;
 };
 

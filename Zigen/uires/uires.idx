@@ -24,5 +24,10 @@
 		<file name="chicken" path="image\chicken.png" />
 		<file name="star" path="image\star.png" />
 	</image>
-	
+
+	<anim>
+		<file name="hide" path="anim\hide.xml"/>
+		<file name="show" path="anim\show.xml"/>
+		<file name="score" path="anim\score.xml"/>
+	</anim>
 </resource>

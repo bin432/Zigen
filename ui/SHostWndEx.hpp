@@ -168,6 +168,17 @@ public:
 		return 0;
 	}
 
+	void SetChildParentVisible(LPCTSTR lpChildName, BOOL bShow)
+	{
+		auto p = FindChildByName(lpChildName);
+		if (nullptr != p) {
+			p = p->GetParent();
+			if (nullptr != p) {
+				p->SetVisible(bShow, TRUE);
+			}
+		}
+	}
+
 	HRESULT SetChildAttribute(LPCTSTR lpChildName, LPCTSTR lpAttribName, LPCTSTR lpValue, BOOL bLoading=FALSE)
 	{
 		auto p = FindChildByName(lpChildName);

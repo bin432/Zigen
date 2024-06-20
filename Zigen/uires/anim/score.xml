@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set name="score" zAdjustment="normal">
+
+	<scale duration="200" fromXScale="1" toXScale="1.2" fromYScale="1" toYScale="1.2"  />
+	<scale duration="50" startOffset="30"  fromXScale="1.2" toXScale="1" fromYScale="1.2" toYScale="1"  />
+	<alpha duration="50" startOffset="250"  fromAlpha="1.0" toAlpha="0"/>
+</set>

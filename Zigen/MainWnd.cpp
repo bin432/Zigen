@@ -1,107 +1,14 @@
 #include "StdAfx.h"
 #include "MainWnd.h"
+
 #include <thread>
-#include <ShlObj.h>
-#include <algorithm>
 
 #include "common.hpp"
 
 
 auto configFile =L".\\config.ini";
-static int GetConfigInt(const wchar_t* lpKey, int def=0)
-{
-	return GetPrivateProfileIntW(L"info", lpKey, def, configFile);
-}
-static void SetConfigInt(const wchar_t* lpKey, int value)
-{
-	WritePrivateProfileStringW(L"info", lpKey, std::to_wstring(value).c_str(), configFile);
-}
-static std::wstring GetConfigString(const wchar_t* lpKey, const wchar_t* def = NULL)
-{
-	WCHAR cBuf[1024] = {0};
-	DWORD uSize = GetPrivateProfileStringW(L"info", lpKey, def, cBuf, 1024, configFile);
-	if (uSize > 0) {
-		cBuf[uSize] = '\0';
-	}
 
-	return std::wstring(cBuf);
-}
-static void InitConfigListS(std::list<ZigenCount*>& lst)
-{
-	wchar_t* cBuf = new wchar_t[10240];
-	DWORD uSize = GetPrivateProfileStringW(L"list", L"value", L"", cBuf, 10240, configFile);
-	if (uSize > 0) {
-		cBuf[uSize] = '\0';
-	}
-
-	if (uSize == 0) {
-		return;
-	}
-
-	int nKeyBegin = 0;
-	if (';' == cBuf[0]) {
-		nKeyBegin = 1;
-	}
-
-	int nKeyEnd = 0;
-	int nValueBegin = 0;
-
-	for (int i = 1; i <= uSize; ++i) {
-		if (':' == cBuf[i])			// 有 等于 
-		{
-			nKeyEnd = i;
-			nValueBegin = i + 1;
-		} else if (';' == cBuf[i] || '\0' == cBuf[i] || i == uSize) {
-			if (nKeyBegin == nKeyEnd) {
-				continue;
-			}
-			
-			std::wstring sKey(cBuf + nKeyBegin, nKeyEnd - nKeyBegin);
-			std::wstring sValue(cBuf + nValueBegin, i - nValueBegin);
-
-			int index = std::stoi(sKey);
-			int count = std::stoi(sValue);
-			lst.push_back(new ZigenCount{index, count});
-
-			nKeyBegin = i + 1;
-			nKeyEnd = nKeyBegin;
-			nValueBegin = nKeyBegin;
-		}
-	}
-
-	delete[] cBuf;
-}
-static void SaveConfigZigenCountList(const std::list<ZigenCount*>& lst)
-{
-	std::wstring value;
-	value.reserve(4096);
-	for (auto& i : lst) {
-		value += std::to_wstring(i->index);
-		value += L':';
-		value += std::to_wstring(i->count);
-		value += L';';
-	}
-
-	WritePrivateProfileStringW(L"list", L"value", value.c_str(), configFile);
-}
-
-
-// 连击对应
-const int bbArr[] = {10, 30, 60, 100,  200, 300, 400, 500, 600,   800, 1000, 1500, 2000, 2500};
-const int scoreArr[] = {2, 4, 8, 16, 40,   80,160,200,250,300,   360, 400, 480, 600, 800};
-int static calcScore(int ccc)
-{	
-	int index = 0;
-	for (int c : bbArr) {
-		if (ccc < c) {
-			break;
-		}
-		index += 1;
-	}
-	
-	return scoreArr[index];
-}
-
+const int TIMER_NEXT = 101;
 CMainWnd::CMainWnd(void)
 	: SHostWndEx(_T("layout:wnd_main"))//这里定义主界面需要使用的布局文件 在uires.idx文件中定义的
 {
@@ -116,77 +23,110 @@ CMainWnd::~CMainWnd(void)
 ///////////////////////////////////界面 事件  函数///////////////////////////////////////
 BOOL CMainWnd::OnInitDialog(HWND wndFocus, LPARAM lInitParam)
 {
+	InitWnd(m_pComb, L"cb_zz");
+	InitWnd(m_pLayZigen, L"lay_zigen");
 	InitWnd(m_pImage, L"img_zi");
 	InitWnd(m_pTxtCode, L"text_code");
 	InitWnd(m_pTxtFirst, L"text_first");
 	InitWnd(m_pTxtSecond, L"text_second");
+	InitWnd(m_pTxtScore, L"text_score");
 
-#ifdef _DEBUG
-	SetChildVisible(L"btn_next", TRUE);
-#endif // _DEBUG
+	m_pLayZigen->GetEventSet()->subscribeEvent(&CMainWnd::OnAnimStopZigen, this);
 
-	common::WalkH(
-#ifdef _DEBUG	
-		L"C:\\Tool\\真码字根练习\\zm"
-#else
-		L".\\zm"
-#endif // DEBUG
-		, [this](const wchar_t* f, bool dir, unsigned __int64 s)->bool {
 
-		if (dir) {
-			return true;
-		}
+	InitWnd(m_pLayHanzi, L"lay_hanzi");
+	InitWnd(m_pTxtPin, L"text_pin");
+	InitWnd(m_pTxtHanzi, L"text_hanzi");
+	InitWnd(m_pEditHanzi, L"edit_hanzi");
 
-		ZigenInfo* info = new ZigenInfo;
+	m_pEditHanzi->GetEventSet()->subscribeEvent(&CMainWnd::OnEditRENotifyHanzi, this);
+	m_pLayHanzi->GetEventSet()->subscribeEvent(&CMainWnd::OnAnimStopHanzi, this);
 
-		info->file = f;
-		auto fn = common::GetFileNameWithoutExt(f);
-		int pos = fn.find('_');
-		if (pos < 0) {
-			info->code = fn.c_str();
-		} else {
-			info->code = fn.substr(0, pos).c_str();
-		}
-		info->code.MakeLower();
-		GETRENDERFACTORY->CreateBitmap(&info->bmp);
-		info->bmp->LoadFromFile(info->file);
+	
+	m_aniHide = SApplication::getSingletonPtr()->LoadAnimation(_T("anim:hide"));
+	m_aniShow = SApplication::getSingletonPtr()->LoadAnimation(_T("anim:show"));
+	m_aniScore = SApplication::getSingletonPtr()->LoadAnimation(_T("anim:score"));
 
-		m_arrZigen.push_back(info);
-		return true;
-	});
-
-	if (m_arrZigen.empty()) {
-		ShowInfoBox(L"请放置zm文件夹");
-		OnBtnClose();
+	
+	int count = common::GetIniFileInt(L"list", L"count", configFile);	
+	for(int i=1; i<=count; i++) {
+		auto app = std::to_wstring(i);
+		auto name = common::GetIniFileString(app.c_str(), L"name", configFile);
+		auto& ini = common::GetIniFileString(app.c_str(), L"ini", configFile);
+		int type = common::GetIniFileInt(app.c_str(), L"type", configFile);
+		std::wstring* pd = new std::wstring(std::move(ini));
+		m_pComb->InsertItem(i-1, name.c_str(), type, (LPARAM)pd);
+	}
+	
+	if (m_pComb->GetCount() == 0) {
 		return TRUE;
 	}
 
-	// 固定的 排序
-	std::sort(m_arrZigen.begin(), m_arrZigen.end(), [](const ZigenInfo* a, const ZigenInfo* b)->bool {
-		return common::CalcFileSize(a->file) < common::CalcFileSize(b->file);
-	});
+	m_pComb->GetEventSet()->subscribeEvent(&CMainWnd::OnCombSelChange, this);
 
-	// 加载 上次保存的 列表
-	InitConfigListS(m_list);
-	if (m_list.empty()) {
-		for (int i = 0; i < m_arrZigen.size(); i++) {
-			m_list.push_back(new ZigenCount{i, -1});
-		}
-	}
-	
-	m_progress = GetConfigInt(L"progress");
-	m_points = GetConfigInt(L"points");
-	m_ccc = GetConfigInt(L"ccc");
-	SetChildText(L"text_points", SStringT().Format(L"%d", m_points));
-	SetChildFormatText(L"text_ccc", SStringT().Format(L"%d", m_ccc));
+	int sel = common::GetIniFileInt(L"config", L"comb_sel", configFile, 0);
+	m_pComb->SetCurSel(sel);
 
-	DrawProgress();
-	DrawZigen();
 	return TRUE;
 }
+BOOL CMainWnd::OnCombSelChange(EventCBSelChange* pEvt)
+{
+	LPARAM p = m_pComb->GetItemData(pEvt->nCurSel);
+	if (p == 0) {
+		ShowInfoBox(L"无效的ItemData");
+		return TRUE;
+	}
 
+	int type = m_pComb->GetListBox()->GetItemImage(pEvt->nCurSel);
+
+	common::SetIniFileInt(L"config", L"comb_sel", configFile, pEvt->nCurSel);
+
+	std::wstring iniFile;
+	
+#ifdef _DEBUG	
+	iniFile = L"C:\\Tool\\zigen\\data\\";
+#else
+	iniFile = L".\\data\\";
+#endif // DEBUG
+	iniFile += ((std::wstring*)p)->c_str();
+	
+	STabCtrl* pTab;
+	InitWnd(pTab, L"tab_main");
+
+	if (type == 0) {
+		pTab->SetCurSel(L"zigen", FALSE);
+		m_dataZigen.Init(iniFile.c_str());
+
+		SetChildParentVisible(L"text_points", TRUE);
+		SetChildParentVisible(L"text_ccc", TRUE);
+
+		SetChildText(L"text_points", SStringT().Format(L"%d", m_dataZigen.GetPoints()));
+		SetChildFormatText(L"text_ccc", SStringT().Format(L"%d", m_dataZigen.GetCCC()));
+
+		LoadZigen();
+	} else {
+		pTab->SetCurSel(L"hanzi", FALSE);
+		m_pImage->SetImage(nullptr);
+		m_dataHanzi.Init(iniFile.c_str());
+
+		SetChildParentVisible(L"text_points", FALSE);
+		SetChildParentVisible(L"text_ccc", FALSE);
+		
+		m_pEditHanzi->SetFocus();
+		LoadHanzi();
+	}
+	
+	DrawProgress();
+	return TRUE;
+}
 void CMainWnd::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	if (nullptr == m_pImage->GetImage()) {
+		SetMsgHandled(FALSE);
+		return;
+	}
+
+
 	if (nChar == VK_BACK) {
 		SStringT txtSecond = m_pTxtSecond->GetWindowText();
 		if (!txtSecond.IsEmpty()) {
@@ -198,14 +138,16 @@ void CMainWnd::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_pTxtSecond->SetAttribute(L"colorText", L"#AAAAAA");
 		return;
 	}
-	
-	if (nChar > 90 || nChar < 65) {
+
+	// 空格 用来 补充 单编码的字根第二位
+	// 或 用来提示，连击清零
+	if (nChar == VK_SPACE) {
+		m_pTxtCode->SetVisible(TRUE, TRUE);
+		// 
 		return;
 	}
 
-	ZigenCount* zcount = m_list.front();
-	ZigenInfo* info = m_arrZigen.at(zcount->index);
-	if (info == nullptr) {
+	if (nChar > 90 || nChar < 65) {
 		return;
 	}
 
@@ -214,133 +156,232 @@ void CMainWnd::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	sChar.Format(L"%C", nChar);
 	sChar.MakeLower();
 
+	// 单 编码
+	if (!m_pTxtSecond->IsVisible() ) {
+		
+		m_pTxtFirst->SetAttribute(L"colorText", L"#AAAAAA");
+		m_pTxtFirst->SetWindowText(sChar);
+
+		// 只有一个 编码 立即 验证
+		DoVerify();
+		return;
+	}
+
+	// 双编码 
 	SStringT txtFirst = m_pTxtFirst->GetWindowText();
 	if (txtFirst.IsEmpty()) {		
+		m_pTxtFirst->SetAttribute(L"colorText", L"#AAAAAA");
 		m_pTxtFirst->SetWindowText(sChar);
-		if (m_pTxtSecond->IsVisible()) {
-			// 双编码  
-			return;
-		}
-		ok = sChar == info->code;
-	} else if (!m_pTxtSecond->GetWindowText().IsEmpty()) {
+
+		return;
+	}
+	// 判断是否有出错的
+	if (!m_pTxtSecond->GetWindowText().IsEmpty()) {
 		// 出错了 才近来
 		m_pTxtFirst->SetWindowText(sChar);
 		m_pTxtSecond->SetWindowText(L"");
 		m_pTxtFirst->SetAttribute(L"colorText", L"#AAAAAA");
 		m_pTxtSecond->SetAttribute(L"colorText", L"#AAAAAA");
 
-		if (m_pTxtSecond->IsVisible()) {
-			// 双编码  
-			return;
-		}
-		ok = sChar == info->code;
-	}
-
-	m_pTxtSecond->SetWindowText(sChar);
-	ok = (txtFirst+sChar) == info->code;
-	
-	if (!ok) {
-		zcount->count = -1;
-		m_ccc = 0;
-		SetConfigInt(L"ccc", (int)m_ccc);
-		SaveConfigZigenCountList(m_list);
-
-		m_pTxtCode->SetWindowText(info->code);
-
-		m_pTxtFirst->SetAttribute(L"colorText", L"#FF0000");
-		m_pTxtSecond->SetAttribute(L"colorText", L"#FF0000");
-				
-		SetChildText(L"text_ccc", SStringT().Format(L"%d", m_ccc));
-		SetChildText(L"text_bb", L"*1倍");			
-
 		return;
 	}
 
-	zcount->count += 1;
-	// 连击数
-	m_ccc += 1;
-	SetChildText(L"text_ccc", SStringT().Format(L"%d", m_ccc));
+	m_pTxtSecond->SetAttribute(L"colorText", L"#AAAAAA");
+	m_pTxtSecond->SetWindowText(sChar);
 
-	// 倍数 和 分数
-	int star = calcScore(m_ccc);
-	int bb = star / 2;
+	DoVerify();
+}
+void CMainWnd::OnTimer(UINT_PTR idEvent)
+{
+	if (TIMER_NEXT == idEvent) {
+		KillTimer(TIMER_NEXT);
+
+
+	} else {
+		__super::OnTimer(idEvent);
+	}
+}
+
+void CMainWnd::DrawProgress()
+{
+	int hadC;
+	int total;
+	int cent;
+	if (nullptr == m_pImage->GetImage()) {
+		hadC = m_dataHanzi.GetIndex() + 1;
+		total = m_dataHanzi.GetCount();
+		cent = hadC * 100 / (max(total, 1));
+	} else {
+		hadC = m_dataZigen.GetMaxIndex() + 1;
+		total = m_dataZigen.GetCount();
+		cent = hadC * 100 / (max(total, 1));
+	}
+	SetChildFormatText(L"text_cent", L"%d%%", cent);
+	SetChildFormatText(L"text_progress", L"%d/%d", hadC, total);
+}
+void CMainWnd::LoadZigen()
+{
+	
+	const ZigenItem* item = m_dataZigen.GetZigenItem();
+
+	m_pImage->SetImage(item->bmp);
+	
+	int maxIndex = m_dataZigen.GetMaxIndex();
+	if (m_dataZigen.GetZigenIndex() >= maxIndex) {
+		DrawProgress();
+	} 
+
+	m_pTxtCode->SetWindowText(item->code);
+
+	if (m_dataZigen.IsShowCode()) {
+		m_pTxtCode->SetVisible(TRUE);
+	} else {
+		m_pTxtCode->SetVisible(FALSE);
+	}
+		
+	m_pTxtFirst->SetWindowText(L"");
+	m_pTxtSecond->SetWindowText(L"");
+
+	if (item->code.GetLength() > 1) {
+		m_pTxtSecond->SetVisible(TRUE);
+	} else {
+		m_pTxtSecond->SetVisible(FALSE);
+	}
+}
+
+void CMainWnd::DoVerify()
+{
+	SStringT code = m_pTxtFirst->GetWindowText();
+	if (m_pTxtSecond->IsVisible()) {
+		code += m_pTxtSecond->GetWindowText();
+	} else {
+		m_pTxtSecond->SetWindowText(L"");
+	}
+
+	SStringT realCode = m_pTxtCode->GetWindowText();
+
+	if (realCode != code) {
+		int scroe = m_dataZigen.CalcFailedScore();
+		m_pTxtCode->SetVisible(TRUE, TRUE);
+
+		m_pTxtFirst->SetAttribute(L"colorText", L"#FF0000");
+		m_pTxtSecond->SetAttribute(L"colorText", L"#FF0000");
+
+		SetChildText(L"text_ccc", SStringT().Format(L"%d", m_dataZigen.GetCCC()));
+		SetChildText(L"text_bb", L"*1倍");
+		return;
+	}
+	
+	int calc = m_dataZigen.CalcOkScore();
+	
+	m_dataZigen.Next();
+
+
+	SStringT ss;
+	ss.Format(L"+%d", calc);
+	m_pTxtScore->SetWindowText(ss);
+	m_pTxtScore->StartAnimation(m_aniScore);
+
+	
+	SetChildText(L"text_bb", SStringT().Format(L"*%d倍", calc/m_dataZigen.GetOnePoint()));
+	SetChildText(L"text_points", SStringT().Format(L"%d", m_dataZigen.GetPoints()));
+	SetChildText(L"text_ccc", SStringT().Format(L"%d", m_dataZigen.GetCCC()));
+	/*
+	// 倍数 
+	int bb = calcScoreTimes(m_ccc);
+	// 和 分数
+	int star = 2 * bb;
 	m_points += star;
 	SetConfigInt(L"points", (int)m_points);
 	SetConfigInt(L"ccc", (int)m_ccc);
 
-	SetChildText(L"text_bb", SStringT().Format(L"*%d倍", bb));
-	SetChildText(L"text_points", SStringT().Format(L"%d", m_points));
+
+
+	// 动画
+	m_pTxtScore->StartAnimation(m_aniScore);
 	
-	// 正确后，移出 队头
-	m_list.pop_front();
 
-	if (zcount->count >= 8) {
-		// 连续8次后  直接 移动到 队尾		
-		m_list.push_back(zcount);
-	} else {
-		// zigenCount count[01234567] 几次后 跳到 列表的多少位
-		static const int indexCount[] = {2, 4, 8, 12, 20, 30, 60, 100};
-		int after = indexCount[zcount->count];
+	*/
+	// 动画 下一个
+	m_pLayZigen->StartAnimation(m_aniHide);
+}
 
-		auto ite = m_list.begin();
-		std::advance(ite, after);
-		m_list.insert(ite, zcount);
+BOOL CMainWnd::OnAnimStopZigen(EventSwndAnimationStop* pEvt)
+{
+	// 加分的动画结束后 才 加载 下一个 
+	//pEvt->get
+	if (m_pLayZigen->GetAnimation() == m_aniHide) {
+		// hide 动画 结束
+
+
+		LoadZigen();
+		DrawProgress();
+		m_pLayZigen->StartAnimation(m_aniShow);
+	} else if(m_pLayZigen->GetAnimation() == m_aniShow){
+		// 显示 动画 结束
+
 	}
-	SaveConfigZigenCountList(m_list);
 	
-	DrawZigen();
+	return TRUE;
 }
 
-void CMainWnd::DrawProgress() 
+void CMainWnd::LoadHanzi()
 {
-	int hadC = m_progress + 1;
-	int cent = hadC * 100 / m_arrZigen.size();
-
-	SetChildFormatText(L"text_cent", L"%d%%", cent);
-	SetChildFormatText(L"text_progress", L"%d/%d", hadC, m_arrZigen.size());
-
-	SetConfigInt(L"progress", m_progress);
-}
-void CMainWnd::DrawZigen()
-{
-	ZigenCount* zcount = m_list.front();
-	ZigenInfo* info = m_arrZigen[zcount->index];
-	
-	if (info == nullptr) {
-		ShowInfoBox(L"结束到头了");
+	const HanziItem* item = m_dataHanzi.GetItem();
+	if (item == nullptr) {
+		ShowInfoBox(L"nullptr");
 		return;
 	}
+	m_pTxtPin->SetWindowText(item->pin.c_str());
+	m_pTxtHanzi->SetWindowText(item->hanzi.c_str());
 
-	m_pImage->SetImage(info->bmp);
-
-	if (zcount->index >= m_progress) {
-		m_progress = zcount->index;
-		DrawProgress();
-	}
-
-
-	if (zcount->count < 0) {
-		// 第一次出现  显示 编码
-		m_pTxtCode->SetWindowText(info->code);
-	} else {
-		m_pTxtCode->SetWindowText(L"");
-	}
-	
-	m_pTxtFirst->SetWindowText(L"");
-	m_pTxtSecond->SetWindowText(L"");
-
-	if (info->code.GetLength() == 1) {
-		// 单编码
-		m_pTxtSecond->SetVisible(FALSE, TRUE);
-	} else {
-		// 双编码
-		m_pTxtSecond->SetVisible(TRUE, TRUE);
-	}
+	m_pEditHanzi->SetUserData((ULONG_PTR)item->hanzi.c_str());
+	//m_pTxtFirst->SetWindowText(L"");
+	//m_pTxtSecond->SetWindowText(L"");
 }
+BOOL CMainWnd::OnEditRENotifyHanzi(EventRENotify* pEvt)
+{	
+	if (EN_CHANGE != pEvt->iNotify) {
+		return TRUE;
+	}
 
-void CMainWnd::OnBtnNext()
+	SStringT sHanzi = m_pEditHanzi->GetWindowText();
+	if (sHanzi.IsEmpty()) {
+		return TRUE;
+	}
+
+	auto realHanzi = (const wchar_t*)m_pEditHanzi->GetUserData();
+	if (realHanzi == nullptr) {
+		ShowErrorBox(L"m_pEditHanzi error");
+		return TRUE;
+	}
+
+	if (sHanzi == realHanzi) {
+		m_pEditHanzi->SetWindowText(L"");
+		if (!m_dataHanzi.Next()) {
+			ShowInfoBox(L"己完成一遍");
+
+			m_dataHanzi.Reset();	
+		}
+
+		m_pLayHanzi->StartAnimation(m_aniHide);		
+	}
+
+	return TRUE;
+}
+BOOL CMainWnd::OnAnimStopHanzi(EventSwndAnimationStop* pEvt)
 {
 	
-	
-}
+	if (m_pLayHanzi->GetAnimation() == m_aniHide) {
+		// hide 动画 结束
 
+		LoadHanzi();
+		DrawProgress();
+		m_pLayHanzi->StartAnimation(m_aniShow);
+	} else if (m_pLayHanzi->GetAnimation() == m_aniShow) {
+		// 显示 动画 结束
+
+	}
+
+	return TRUE;	
+}

@@ -22,6 +22,9 @@
     <Filter Include="uires\values">
       <UniqueIdentifier>{2c44cb02-2167-40c8-b724-aa898a214e89}</UniqueIdentifier>
     </Filter>
+    <Filter Include="uires\anim">
+      <UniqueIdentifier>{2e70d010-f169-434d-8493-5e3199bfb34e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -39,10 +42,13 @@
     <ClInclude Include="MainWnd.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="CustomEvent.h">
+    <ClInclude Include="common.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="common.hpp">
+    <ClInclude Include="ZigenData.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="HanziData.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -77,6 +83,15 @@
     </Xml>
     <Xml Include="uires\values\string.xml">
       <Filter>uires\values</Filter>
+    </Xml>
+    <Xml Include="uires\anim\score.xml">
+      <Filter>uires\anim</Filter>
+    </Xml>
+    <Xml Include="uires\anim\hide.xml">
+      <Filter>uires\anim</Filter>
+    </Xml>
+    <Xml Include="uires\anim\show.xml">
+      <Filter>uires\anim</Filter>
     </Xml>
   </ItemGroup>
   <ItemGroup>

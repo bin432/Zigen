@@ -3,17 +3,9 @@
 #include "MainWnd.h"
 
 // 这是 静态 使用 soui 界面库 的 例子
-#include "imgdecoder-gdip.h"
-#include "render-gdi.h"
 
 
-#ifdef _DEBUG
-#pragma comment(lib, "render-gdid.lib")
-#pragma comment(lib, "imgdecoder-gdipd.lib")
-#else
-#pragma comment(lib, "render-gdi.lib")
-#pragma comment(lib, "imgdecoder-gdip.lib")
-#endif
+#include <commgr2.h>
 
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -28,21 +20,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	SASSERT(SUCCEEDED(hRes));
 
 	// 静态 加载 图片解析库 和 绘画引擎
+
 	try
 	{
+		SComMgr2* pComMgr = new SComMgr2(L"imgdecoder-gdip");
+		BOOL bLoaded = FALSE;
 		// 图片 解析
 		CAutoRefPtr<IImgDecoderFactory> pImgDecoderFactory;
-		if(!IMGDECODOR_GDIP::SCreateInstance((IObjRef**)&pImgDecoderFactory))
-		{
+		bLoaded = pComMgr->CreateImgDecoder((IObjRef**)&pImgDecoderFactory);
+		//if(!IMGDECODOR_GDIP::SCreateInstance((IObjRef**)&pImgDecoderFactory))
+		if(!bLoaded) {
 			::MessageBox(NULL, _T("CreateImgDecoder_GDI Error"), _T("错误"), MB_ICONERROR);
 			throw 0;
 		}
 
 		// 渲染 引擎
 		CAutoRefPtr<IRenderFactory> pRenderFactory;
-		if (!RENDER_GDI::SCreateInstance((IObjRef**)&pRenderFactory))
+		if (!pComMgr->CreateRender_Skia((IObjRef**)&pRenderFactory))
 		{
-			::MessageBox(NULL, _T("CreateRender_GDI Error"), _T("错误"), MB_ICONERROR);
+			::MessageBox(NULL, _T("CreateRender_SKIA Error"), _T("错误"), MB_ICONERROR);
 			throw 0;
 		}
 
@@ -98,7 +94,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 		delete pRun;
 		delete app;
-
+		delete pComMgr;
 	}
 	catch(...)
 	{

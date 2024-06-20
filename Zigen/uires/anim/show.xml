@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set name="ani_show" shareInterpolator="true" >
+	<translate duration="150" fromXDelta="200" toXDelta="0" fromYDelta="0" toYDelta="0"/>
+	<alpha duration="200" fromAlpha="0" toAlpha="1"/>
+</set>
