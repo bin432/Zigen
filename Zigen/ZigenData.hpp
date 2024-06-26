@@ -24,9 +24,9 @@ public :
 	}
 
 
-	void Init(const wchar_t* iniFile)
+	void Init(const wchar_t* iniFile, const wchar_t* userIni)
 	{
-		m_userIniFile = iniFile;
+		m_userIniFile = userIni;
 		m_arrZigen.clear();
 		m_list.clear();
 		m_mapCount.clear();
@@ -35,17 +35,15 @@ public :
 				
 		auto dir = file.parent_path() / common::GetIniFileString(L"info", L"dir", iniFile);
 				
-		m_onePoint = common::GetIniFileInt(L"info", L"score", m_userIniFile, 2);
+		m_onePoint = common::GetIniFileInt(L"info", L"score", iniFile, 2);
 
 		std::vector<std::wstring> vec;
-		int count = common::GetIniFileInt(L"file", L"count", m_userIniFile);
+		int count = common::GetIniFileInt(L"file", L"count", iniFile);
 		if (count == 0) {
 			// 还没初始化
 
 			for (const auto& entry : fs::directory_iterator(dir)) {
-
 				if (entry.is_directory()) {
-
 					continue;
 				}
 
@@ -61,15 +59,14 @@ public :
 			// 输出排序后的结果
 			int i = 0;
 			for (auto& f : vec) {
-
-				common::SetIniFileString(L"file", std::to_wstring(i).c_str(), m_userIniFile, f.c_str());
+				common::SetIniFileString(L"file", std::to_wstring(i).c_str(), iniFile, f.c_str());
 				i++;
 			}
 
-			common::SetIniFileInt(L"file", L"count", m_userIniFile, i);
+			common::SetIniFileInt(L"file", L"count", iniFile, i);
 		} else {
 			for (int i = 0; i < count; i++) {
-				auto& f = common::GetIniFileString(L"file", std::to_wstring(i).c_str(), m_userIniFile);
+				auto& f = common::GetIniFileString(L"file", std::to_wstring(i).c_str(), iniFile);
 				vec.push_back(f);
 			}
 		}

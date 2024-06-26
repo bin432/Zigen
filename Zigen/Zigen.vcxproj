@@ -144,7 +144,7 @@
       <Command>..\uiresbuilder.exe -p uires -i uires\uires.idx -r uires\winres.rc2</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)bin\Zigen.exe C:\Tool\Zigen\Zigen.exe</Command>
+      <Command>copy   $(SolutionDir)bin\Zigen.exe    C:\Tool\Zigen\Zigen.exe</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

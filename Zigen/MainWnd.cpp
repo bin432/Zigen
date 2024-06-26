@@ -82,20 +82,25 @@ BOOL CMainWnd::OnCombSelChange(EventCBSelChange* pEvt)
 	common::SetIniFileInt(L"config", L"comb_sel", configFile, pEvt->nCurSel);
 
 	std::wstring iniFile;
-	
-#ifdef _DEBUG	
-	iniFile = L"C:\\Tool\\zigen\\data\\";
+    std::wstring userIni;
+
+#ifdef _DEBUG
+        iniFile = L"C:\\Tool\\zigen\\data\\";
+        userIni = L"C:\\Tool\\zigen\\user\\";
 #else
-	iniFile = L".\\data\\";
-#endif // DEBUG
-	iniFile += ((std::wstring*)p)->c_str();
+        iniFile = L".\\data\\";
+        userIni = L".\\user\\";
+#endif  // DEBUG
+        iniFile += ((std::wstring*)p)->c_str();
+        userIni += ((std::wstring*)p)->c_str();
+	
 	
 	STabCtrl* pTab;
 	InitWnd(pTab, L"tab_main");
 
 	if (type == 0) {
 		pTab->SetCurSel(L"zigen", FALSE);
-		m_dataZigen.Init(iniFile.c_str());
+        m_dataZigen.Init(iniFile.c_str(), userIni.c_str());
 
 		SetChildParentVisible(L"text_points", TRUE);
 		SetChildParentVisible(L"text_ccc", TRUE);
@@ -142,7 +147,7 @@ void CMainWnd::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	// 空格 用来 补充 单编码的字根第二位
 	// 或 用来提示，连击清零
 	if (nChar == VK_SPACE) {
-		m_pTxtCode->SetVisible(TRUE, TRUE);
+          DoVerify();
 		// 
 		return;
 	}
@@ -260,14 +265,14 @@ void CMainWnd::DoVerify()
 
 	SStringT realCode = m_pTxtCode->GetWindowText();
 
-	if (realCode != code) {
+	if (realCode.CompareNoCase(code) != 0) {
 		int scroe = m_dataZigen.CalcFailedScore();
 		m_pTxtCode->SetVisible(TRUE, TRUE);
 
 		m_pTxtFirst->SetAttribute(L"colorText", L"#FF0000");
 		m_pTxtSecond->SetAttribute(L"colorText", L"#FF0000");
 
-		SetChildText(L"text_ccc", SStringT().Format(L"%d", m_dataZigen.GetCCC()));
+		SetChildText(L"text_ccc", L"0");
 		SetChildText(L"text_bb", L"*1倍");
 		return;
 	}
